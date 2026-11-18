@@ -147,22 +147,7 @@ const ACC=[
  {k:"cgpress",name:"Close-grip chest press machine",s:"B",sets:2,reps:"8–10",start:75},
  {k:"kneeraise",name:"Hanging knee raise",s:"B",sets:2,reps:"10–15",start:0}
 ];
-const WEEKS=[
- {ph:"Re-entry",sp:.85,sn:"1",bp:.75,sb:[3,"6"],dl:[3,"5"],ot:[3,"6"],gk:2600,ok:2100},
- {ph:"Re-entry",sp:.875,sn:"1",bp:.775,sb:[4,"6"],dl:[3,"5"],ot:[3,"6"],gk:2600,ok:2100},
- {ph:"Build",sp:.90,sn:"1",bp:.80,sb:[4,"5–8"],dl:[3,"5–6"],ot:[3,"6–8"],gk:2600,ok:2100},
- {ph:"Build",sp:.90,sn:"1–2",bp:.80,sb:[4,"5–8"],dl:[3,"5–6"],ot:[3,"6–8"],gk:2600,ok:2100},
- {ph:"Build · push week",sp:.925,sn:"1",bp:.80,sb:[4,"5–8"],dl:[3,"5–6"],ot:[3,"6–8"],gk:2600,ok:2000},
- {ph:"Build · push week",sp:.925,sn:"1–2",bp:.825,sb:[4,"5–8"],dl:[3,"5–6"],ot:[3,"5–6"],gk:2600,ok:2000},
- {ph:"Peak · push week",sp:.95,sn:"1",bp:.825,sb:[4,"5–6"],dl:[3,"5"],ot:[3,"5–6"],gk:2600,ok:2000},
- {ph:"Deload · Christmas",sp:0,sn:"none",bp:.70,sb:[2,"5"],dl:[2,"5"],ot:[2,"5"],gk:2500,ok:2500},
- {ph:"Max test",sp:1,sn:"1RM",bp:.75,sb:[0,"-"],dl:[0,"-"],ot:[2,"6"],gk:2600,ok:2300},
- {ph:"New block",sp:.90,sn:"1",bp:.80,sb:[4,"5–8"],dl:[3,"5–6"],ot:[3,"6–8"],gk:2600,ok:2100},
- {ph:"New block",sp:.925,sn:"1",bp:.80,sb:[4,"5–8"],dl:[3,"5–6"],ot:[3,"6–8"],gk:2600,ok:2100},
- {ph:"New block",sp:.95,sn:"1",bp:.825,sb:[4,"5–6"],dl:[3,"5"],ot:[3,"5–6"],gk:2600,ok:2100}
-];
-const Z2=[25,30,30,35,35,40,40,30,30,40,40,45];
-const IV=["5 × 1 min hard / 1 min easy","6 × 1 min / 1 min","7 × 1 min / 1 min","8 × 1 min / 1 min","4 × 3 min / 2 min","4 × 4 min / 3 min","4 × 4 min / 3 min","20 min easy, no intervals","Optional 2,000 m test, or 6 × 1 min / 1 min","8 × 1 min / 1 min","4 × 4 min / 3 min","5 × 4 min / 3 min"];
+let WEEKS=[];
 const UPPER=[["Dumbbell floor press","8–15"],["Single-arm dumbbell row (1 s pause)","8–15 per side"],["Push-ups (deficit or loaded backpack)","10–20"],["Seated dumbbell shoulder press","8–15"],["Dumbbell pullover","10–15"],["Curl + overhead triceps extension","10–15 each"]];
 const LOWER=[["Bulgarian split squat","8–12 per leg"],["Single-leg Romanian deadlift","8–12 per leg"],["Tempo goblet squat (3 s down, 2 s pause)","10–15"],["Dumbbell hip thrust","10–15"]];
 const HOLIDAYS=["2026-12-24","2026-12-25","2026-12-26","2026-12-31"];
@@ -174,7 +159,7 @@ const MON=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","De
 const KEY="cutblock.v1";
 let storageOK=true;
 function defaults(){
-  return {start:"2026-11-02",startWeight:114,step:2.5,protein:170,holidayK:2900,bar:20,smithBar:10.3,
+  return {start:localToday(),startWeight:112,sex:"m",age:41,height:177,goalWeight:102,rate:0.7,activity:1.5,curWeight:112,restartDismissed:false,step:2.5,protein:170,holidayK:2900,bar:20,smithBar:10.3,
     maxes:{squat:{est:135,tested:null},bench:{est:115,tested:null},deadlift:{est:125,tested:null},front:{est:110,tested:null},incline:{est:92.5,tested:null},ohp:{est:67.5,tested:null}},
     acc:Object.fromEntries(ACC.map(a=>[a.k,a.start])),
     loss:[.7,.7,.7,.7,.8,.8,.8,0,.3,.7,.7,.7],
@@ -192,6 +177,68 @@ function load(){
 let S=load();
 let saveT=null;
 function save(){clearTimeout(saveT);saveT=setTimeout(()=>{try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){storageOK=false;}},150);}
+
+
+/* ---------------- Plan generator: rebuilt from your settings ---------------- */
+const Z2SEQ=[25,30,30,35,35,40,40,40,45,45,45,45];
+const IVSEQ=["5 × 1 min hard / 1 min easy","6 × 1 min / 1 min","7 × 1 min / 1 min","8 × 1 min / 1 min","4 × 3 min / 2 min","4 × 4 min / 3 min","4 × 4 min / 3 min","8 × 1 min / 1 min","4 × 4 min / 3 min","5 × 4 min / 3 min","5 × 4 min / 3 min","5 × 4 min / 3 min"];
+function r50(x){return Math.round(x/50)*50;}
+function curWeight(){return Number(S.curWeight||S.startWeight);}
+function calories(){
+  const w=curWeight(),h=Number(S.height),a=Number(S.age);
+  const bmr=10*w+6.25*h-5*a+(S.sex==="f"?-161:5);
+  const tdee=bmr*Number(S.activity);
+  const want=tdee-Number(S.rate)*7700/7;
+  const floor=Math.max(S.sex==="f"?1500:1800,bmr);
+  const avg=Math.max(floor,want);
+  const o=r50(avg-1000/7),g=r50(avg-1000/7+500);
+  return {bmr:Math.round(bmr),tdee:r50(tdee),avg:r50(avg),g,o,push:o-100,dl:r50(tdee-400),hol:r50(tdee-250),capped:avg>want+1,realRate:Math.round((tdee-avg)*7/7700*100)/100};
+}
+function xmasWeek(){const d=diffDays(S.start,"2026-12-25");return (d<0||d>=84)?null:Math.floor(d/7)+1;}
+function buildPlan(){
+  const xw=xmasWeek();const dl=(xw&&xw>=5&&xw<=9)?xw:8;const xmas=dl===xw;
+  const B=[{sp:.90,sn:"1",bp:.80,sb:[4,"5–8"],dl:[3,"5–6"],ot:[3,"6–8"]},{sp:.90,sn:"1–2",bp:.80,sb:[4,"5–8"],dl:[3,"5–6"],ot:[3,"6–8"]},
+           {sp:.925,sn:"1",bp:.80,sb:[4,"5–8"],dl:[3,"5–6"],ot:[3,"6–8"]},{sp:.925,sn:"1–2",bp:.825,sb:[4,"5–8"],dl:[3,"5–6"],ot:[3,"5–6"]}];
+  const PEAK={sp:.95,sn:"1",bp:.825,sb:[4,"5–6"],dl:[3,"5"],ot:[3,"5–6"]};
+  const W=[];
+  W.push(Object.assign({kind:"re",ph:"Re-entry",sp:.85,sn:"1",bp:.75,sb:[3,"6"],dl:[3,"5"],ot:[3,"6"]}));
+  W.push(Object.assign({kind:"re",ph:"Re-entry",sp:.875,sn:"1",bp:.775,sb:[4,"6"],dl:[3,"5"],ot:[3,"6"]}));
+  const n=dl-3;
+  for(let i=0;i<n;i++){const t=i===n-1?PEAK:B[Math.min(i,3)];W.push(Object.assign({kind:"build",ph:i===n-1?"Peak":"Build"},t));}
+  W.push({kind:"deload",ph:xmas?"Deload · Christmas":"Deload",sp:0,sn:"none",bp:.70,sb:[2,"5"],dl:[2,"5"],ot:[2,"5"]});
+  W.push({kind:"test",ph:"Max test",sp:1,sn:"1RM",bp:.75,sb:[0,"-"],dl:[0,"-"],ot:[2,"6"]});
+  const m=12-W.length;
+  for(let i=0;i<m;i++){const last=i===m-1;W.push({kind:"new",ph:"New block",sp:last?.95:(i===0?.90:.925),sn:"1",bp:(m>=3&&i>=m-2)?.825:.80,sb:[4,last?"5–6":"5–8"],dl:[3,last?"5":"5–6"],ot:[3,last?"5–6":"6–8"]});}
+  const c=calories();let p=0;
+  W.forEach((w,i)=>{
+    w.wk=i+1;
+    if(w.kind==="deload"){w.z2=30;w.iv="20 min easy, no intervals";}
+    else if(w.kind==="test"){w.z2=30;w.iv="Optional 2,000 m test, or 6 × 1 min / 1 min";}
+    else{w.z2=Z2SEQ[p];w.iv=IVSEQ[p];p++;}
+    w.push=xmas&&w.kind!=="re"&&i+1>=dl-3&&i+1<dl;
+    if(w.push)w.ph+=" · push week";
+    w.gk=w.kind==="deload"?c.dl:c.g;
+    w.ok=w.kind==="deload"?c.dl:w.push?c.push:c.o;
+    w.loss=w.kind==="deload"?(xmas?0:Number(S.rate)*0.5):w.kind==="test"?Number(S.rate)*0.5:Number(S.rate);
+  });
+  WEEKS=W;
+}
+function kindOf(wk){return WEEKS[wk-1]?WEEKS[wk-1].kind:"";}
+function wdName(date){return DOW[(parse(date).getUTCDay()+6)%7];}
+/* estimated 1-rep max from a set (Epley; reliable up to ~10 reps) */
+function e1rm(w,r){w=Number(w);r=Number(r);if(!w||!r||r>12)return null;return r===1?w:w*(1+r/30);}
+function bestFromLog(l){
+  let best=null,when=null;
+  Object.keys(S.logs).forEach(d=>{
+    if(diffDays(d,TODAY)>42||diffDays(d,TODAY)<0)return;
+    Object.entries(S.logs[d].items||{}).forEach(([k,v])=>{
+      if(!k.startsWith(l+"-")||k.endsWith("-warm")||!v.sets)return;
+      v.sets.forEach(x=>{if(!x.d)return;const e=e1rm(x.w,x.r);if(e&&(!best||e>best)){best=e;when=d;}});
+    });
+  });
+  return best?{kg:Math.round(best*2)/2,date:when}:null;
+}
+
 try{if(navigator.storage&&navigator.storage.persist)navigator.storage.persist().catch(()=>{});}catch(e){}
 
 /* ---------------- Dates ---------------- */
@@ -207,7 +254,7 @@ if(diffDays(S.start,viewDate)<0)viewDate=S.start;
 
 /* ---------------- Plan engine ---------------- */
 function rnd(x){return Math.round(x/S.step)*S.step;}
-function maxFor(l,wk){const m=S.maxes[l];return (wk>=10&&m.tested)?Number(m.tested):Number(m.est);}
+function maxFor(l,wk){const m=S.maxes[l];return (kindOf(wk)==="new"&&m.tested)?Number(m.tested):Number(m.est);}
 function adjFor(k,wk){return S.adj.filter(a=>a.k===k&&a.from<=wk).reduce((t,a)=>t+a.kg,0);}
 function nums(r){return (String(r).match(/\d+/g)||[]).map(Number);}
 function lo(r){const n=nums(r);return n.length?n[0]:null;}
@@ -218,13 +265,13 @@ function barFor(l){return Number(l==="incline"?S.smithBar:S.bar)||0;}
 function warmItem(l,wk,label,workW){
   const bar=barFor(l);let steps,base;
   if(label==="Back-off"){
-    base=Number(S.maxes[l].est);if(wk>=10)base=maxFor(l,wk);
-    if(l==="deadlift")steps=wk===8?[[.4,5],[.55,3]]:[[.4,5],[.5,5],[.65,3],[.75,2]];
-    else steps=wk===8?[[0,10],[.5,5]]:[[0,10],[.5,5],[.65,3],[.75,2]];
+    base=maxFor(l,wk);
+    if(l==="deadlift")steps=kindOf(wk)==="deload"?[[.4,5],[.55,3]]:[[.4,5],[.5,5],[.65,3],[.75,2]];
+    else steps=kindOf(wk)==="deload"?[[0,10],[.5,5]]:[[0,10],[.5,5],[.65,3],[.75,2]];
   }else{base=workW;steps=[[0,10],[.5,6],[.75,3]];}
   const sets=[];
   steps.forEach(([p,r])=>{const w=p===0?bar:Math.max(bar,rnd(base*p));const last=sets[sets.length-1];if(last&&last.w===w)return;sets.push({w,r,bar:w===bar});});
-  const note=label==="Back-off"&&wk!==8?(wk===9?"Then work up in singles before your attempt.":"Then go straight to the heavy single."):"Rest about 60 s between warm-up sets.";
+  const note=label==="Back-off"&&kindOf(wk)!=="deload"?(kindOf(wk)==="test"?"Then work up in singles before your attempt.":"Then go straight to the heavy single."):"Rest about 60 s between warm-up sets.";
   return {id:l+"-warm",kind:"warm",k:l,name:LIFTS[l],label:"Warm-up",warm:sets,sets:sets.length,reps:"",note};
 }
 function liftItems(l,wk,setsReps,label){
@@ -234,29 +281,29 @@ function liftItems(l,wk,setsReps,label){
 }
 function liftItemsCore(l,wk,setsReps,label){
   const W=WEEKS[wk-1],items=[];
-  if(wk===9&&label==="Back-off"){
+  if(kindOf(wk)==="test"&&label==="Back-off"){
     items.push({id:l+"-test",kind:"lift",k:l,name:LIFTS[l],label:"1RM test",sets:1,reps:"1",weight:Number(S.maxes[l].est),rest:240,
       note:"Work up in singles: about 85% → 92.5% → 97.5%, then attempt 2.5–5 kg above your estimate. Use safety bars or a spotter. Enter the result under Setup → Tested max."});
     return items;
   }
-  if(label==="Back-off"&&wk!==8){
+  if(label==="Back-off"&&kindOf(wk)!=="deload"){
     const n=W.sn==="1–2"?2:1;
     items.push({id:l+"-single",kind:"lift",k:l,name:LIFTS[l],label:"Heavy single",sets:n,reps:"1",pct:W.sp,weight:rnd(maxFor(l,wk)*W.sp),rest:210,
       note:n===2?"Second single is optional. Leave 1–2 reps in reserve.":"Leave 1–2 reps in reserve (RPE 8–9)."});
   }
   if(setsReps[0]>0){
-    items.push({id:l+(label==="Back-off"?"-backoff":"-work"),kind:"lift",k:l,name:LIFTS[l],label:wk===8?"Deload sets":label,sets:setsReps[0],reps:setsReps[1],pct:W.bp,
-      weight:rnd(maxFor(l,wk)*W.bp)+adjFor(l,wk),rest:150,progress:wk!==8});
+    items.push({id:l+(label==="Back-off"?"-backoff":"-work"),kind:"lift",k:l,name:LIFTS[l],label:kindOf(wk)==="deload"?"Deload sets":label,sets:setsReps[0],reps:setsReps[1],pct:W.bp,
+      weight:rnd(maxFor(l,wk)*W.bp)+adjFor(l,wk),rest:150,progress:kindOf(wk)!=="deload"});
   }
   return items;
 }
 function accItems(sess,wk){
   return ACC.filter(a=>a.s===sess).map(a=>{
-    const sets=wk===8?Math.ceil(a.sets/2):wk===9?2:a.sets;
-    return {id:"acc-"+a.k,kind:"acc",k:a.k,name:a.name,label:"Accessory",sets,reps:a.reps,weight:Number(S.acc[a.k])+adjFor(a.k,wk),rest:90,progress:wk!==8&&wk!==9,bw:Number(S.acc[a.k])===0};
+    const k=kindOf(wk);const sets=k==="deload"?Math.ceil(a.sets/2):k==="test"?2:a.sets;
+    return {id:"acc-"+a.k,kind:"acc",k:a.k,name:a.name,label:"Accessory",sets,reps:a.reps,weight:Number(S.acc[a.k])+adjFor(a.k,wk),rest:90,progress:k!=="deload"&&k!=="test",bw:Number(S.acc[a.k])===0};
   });
 }
-function homeSets(wk,i,base){if(wk===8||wk===9)return 2;if(wk>=10&&i<2)return 4;return base;}
+function homeSets(wk,i,base){const k=kindOf(wk);if(k==="deload"||k==="test")return 2;if(k==="new"&&i<2)return 4;return base;}
 const SESS=[0,3,5,2,6,1];
 const SHORT=["Gym A","Zone 2 row","Home upper","Gym B","Rest","Home lower","Row intervals"];
 const FATIGUE={1:1,2:2,5:3,6:4,3:5,0:5};
@@ -277,17 +324,17 @@ function buildDow(dow,wk){
     ["front","incline","ohp"].forEach(l=>items.push(...liftItems(l,wk,W.ot,"Working sets")));
     items.push(...accItems("B",wk));
   }
-  else if(dow===1){items=[{id:"row-z2",kind:"row",name:"Zone 2 row",plan:`${Z2[wk-1]} min steady · 2:10–2:20/500 m · 130–160 W`}];}
+  else if(dow===1){items=[{id:"row-z2",kind:"row",name:"Zone 2 row",plan:`${W.z2} min steady · 2:10–2:20/500 m · 130–160 W`}];}
   else if(dow===2){
     items=UPPER.map((u,i)=>({id:"home-u"+i,kind:"home",name:u[0],label:"Home",sets:homeSets(wk,i,i>=4?2:3),reps:u[1],rest:75,progress:false}));
     items.push({id:"row-easy",kind:"row",name:"Easy row",plan:"10 min easy after the strength work"});
   }
   else if(dow===5){
     items=LOWER.map((u,i)=>({id:"home-l"+i,kind:"home",name:u[0],label:"Home",sets:homeSets(wk,i,3),reps:u[1],rest:75,progress:false}));
-    const rounds=wk<=2?3:(wk===8||wk===9)?2:4;
+    const rounds=kindOf(wk)==="re"?3:(kindOf(wk)==="deload"||kindOf(wk)==="test")?2:4;
     items.push({id:"fin",kind:"fin",name:"Atalanta finisher",plan:`${rounds} rounds: 400 m row, 20 push-ups, 20 sit-ups`,rounds});
   }
-  else if(dow===6){items=[{id:"row-int",kind:"row",name:"Row intervals",plan:`${IV[wk-1]} · 5 min warm-up and cool-down · hard efforts 1:55–2:05/500 m`}];}
+  else if(dow===6){items=[{id:"row-int",kind:"row",name:"Row intervals",plan:`${W.iv} · 5 min warm-up and cool-down · hard efforts 1:55–2:05/500 m`}];}
   items.forEach(it=>it.dow=dow);
   return items;
 }
@@ -320,7 +367,7 @@ function sessionFor(date){
     items.unshift({id:"gen",kind:"gen",name:"General warm-up",plan:dows.includes(5)?"3–5 min easy row, then 10 leg swings each side, 10 bodyweight squats, 10 glute bridges, 5 slow split squats each leg.":"3–5 min easy row, then 10 arm circles each way, 10 push-ups on knees or against a bench, 10 light dumbbell rows each side."});
   }
   let kcal=gym?W.gk:W.ok;
-  if(HOLIDAYS.includes(date))kcal=S.holidayK;
+  if(HOLIDAYS.includes(date))kcal=calories().hol;
   let warn="";
   if(date==="2026-12-24"&&dows.includes(3))warn="Christmas Eve: move Gym B to 23 Dec, or let the app reschedule it.";
   if(date==="2026-12-31"&&dows.includes(3))warn="If the gym is closed on 31 Dec, move the deadlift test to Sat 2 Jan.";
@@ -397,7 +444,7 @@ function reschedule(wk,fromDate,keepToday){
   free.forEach(d=>setDay(d,slots[d]));
   return {placed:order.length-left.length,left};
 }
-function targetFor(wk){let t=Number(S.startWeight);for(let i=0;i<wk;i++)t-=Number(S.loss[i]||0);return Math.round(t*10)/10;}
+function targetFor(wk){let t=Number(S.startWeight);for(let i=0;i<wk&&i<WEEKS.length;i++)t-=Number(WEEKS[i].loss||0);return Math.round(t*10)/10;}
 
 /* ---------------- Logs ---------------- */
 function dayLog(date,create){if(!S.logs[date]){if(!create)return null;S.logs[date]={items:{},body:{}};}return S.logs[date];}
@@ -430,6 +477,7 @@ function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","
 const $=s=>document.querySelector(s);
 function route(){const h=(location.hash||"#today").slice(1);return ["today","week","progress","setup"].includes(h)?h:"today";}
 function render(){
+  buildPlan();
   const r=route();
   document.querySelectorAll("nav.tabs a").forEach(a=>a.classList.toggle("on",a.dataset.tab===r));
   if(r==="today")renderToday();else if(r==="week")renderWeek();else if(r==="progress")renderProgress();else renderSetup();
@@ -439,6 +487,22 @@ function statusChip(st){
 }
 
 /* ---------------- Today ---------------- */
+function anyGymLogged(){
+  return Object.values(S.logs).some(L=>Object.entries(L.items||{}).some(([k,v])=>/^(squat|bench|deadlift|front|incline|ohp)-(single|backoff|work|test)$/.test(k)&&v.sets&&v.sets.some(x=>x.d)));
+}
+function restartDue(){return !S.restartDismissed&&diffDays(S.start,TODAY)>=3&&!anyGymLogged();}
+function restartCard(){
+  return `<div class="card"><div class="label">Plan start</div><h3>Starting later than planned?</h3>
+    <div class="note" style="color:var(--ink)">Your plan began on ${fmt(S.start,true)}, but no gym session is logged yet. Restart the 12 weeks from today so the re-entry weeks, Christmas deload and targets line up with when you actually train.</div>
+    <div class="row2"><div><div class="label">Today’s weight</div><label class="field"><input id="rs-w" inputmode="decimal" value="${esc(curWeight())}"><span>kg</span></label></div><div></div></div>
+    <div class="btns"><button type="button" class="btn primary" data-act="restart">Restart plan from today</button><button type="button" class="btn" data-act="norestart">Keep current start</button></div></div>`;
+}
+function doRestart(w){
+  S.start=TODAY;S.swaps={};S.adj=[];S.restartDismissed=true;
+  if(w&&!isNaN(w)&&w>30){S.startWeight=w;S.curWeight=w;const L=dayLog(TODAY,true);L.body=L.body||{};L.body.w=w;}
+  viewDate=TODAY;weekView=null;save();
+}
+
 function renderToday(){
   const s=sessionFor(viewDate);
   const isToday=viewDate===TODAY;
@@ -457,12 +521,13 @@ function renderToday(){
   let h="";
   if(!storageOK)h+='<div class="banner warn">This browser is blocking storage, so entries will be lost when you close the page. Open the link in your phone’s normal browser, or copy a backup from Setup after each session.</div>';
   else if(Object.keys(S.logs).length&&(!S.lastBackup||diffDays(S.lastBackup,TODAY)>=7))h+='<div class="banner info">Your log lives only on this device. <a href="#setup">Copy a backup</a> once a week so a cleared browser can’t wipe it.</div>';
+  if(restartDue())h+=restartCard();
   if(!s){
     h+=`<div class="card empty">${diffDays(S.start,viewDate)<0?`The plan starts on ${fmt(S.start,true)}.`:"The 12 weeks are complete. Check Progress for your numbers."}</div>`;
     h+=bodyCard(null);
     $("#view").innerHTML=`<div class="stack">${h}</div>`;return;
   }
-  h+=`<div class="card"><div class="cardhead"><div><div class="label">${DOW[s.realDow]}${s.swapped?" · changed":""}${lowSleep(viewDate)?" · low sleep":""}</div><h2>${esc(s.title)}</h2></div>${statusChip(dayStatus(viewDate))}</div>
+  h+=`<div class="card"><div class="cardhead"><div><div class="label">${wdName(viewDate)}${s.swapped?" · changed":""}${lowSleep(viewDate)?" · low sleep":""}</div><h2>${esc(s.title)}</h2></div>${statusChip(dayStatus(viewDate))}</div>
     ${s.warn?`<div class="banner warn">${esc(s.warn)}</div>`:""}
     <div class="btns"><button type="button" class="btn ${planOpen?"primary":""}" data-act="planopen">Change today’s plan</button>
     <button type="button" class="btn ${lowSleep(viewDate)?"primary":""}" data-act="sleep">${lowSleep(viewDate)?"Slept badly ✓":"Slept badly?"}</button></div>
@@ -609,7 +674,7 @@ function bodyCard(s){
   let wkinfo="";
   if(s){
     const avg=weekAvg(s.wk);
-    wkinfo=`<div class="note num">Week ${s.wk} average: ${avg!=null?kg(avg)+" kg":"no entries yet"} · target by Sunday ${kg(targetFor(s.wk))} kg</div>`;
+    wkinfo=`<div class="note num">Week ${s.wk} average: ${avg!=null?kg(avg)+" kg":"no entries yet"} · target at end of week ${kg(targetFor(s.wk))} kg</div>`;
   }
   const sunday=s&&s.realDow===6;
   return `<div class="card"><div class="label">Body</div><h3>${sunday?"Weekly check-in":"Morning weigh-in"}</h3>
@@ -640,7 +705,7 @@ function renderWeek(){
   for(let i=0;i<7;i++){
     const d=addDays(S.start,(weekView-1)*7+i);const s=sessionFor(d);
     h+=`<button type="button" class="dayitem ${d===TODAY?"today":""}" data-act="open" data-d="${d}">
-      <span class="d">${DOW[i]}<small>${fmt(d)}</small></span>
+      <span class="d">${wdName(d)}<small>${fmt(d)}</small></span>
       <span><b>${esc(s.title)}</b>${s.swapped?' <span class="chip">swapped</span>':""}<br><span class="meta num">${s.kcal.toLocaleString("en-GB")} kcal${s.holiday?" · holiday":""}</span></span>
       ${statusChip(dayStatus(d))}</button>`;
   }
@@ -722,19 +787,47 @@ function renderSetup(){
   $("#top").innerHTML='<div class="inner"><h1 style="text-align:center">Setup</h1><div class="sub"><span class="chip good">Data stays on this device</span></div></div>';
   let h=`<div class="card"><h3>Privacy</h3><div class="note" style="color:var(--ink)">Everything you log is saved only in this browser on this phone. The app makes no network requests with your data, and nothing is sent to Claude or any server. The flip side: clearing your browser data, or opening the app in a different browser or device, starts empty. Copy a backup regularly.</div>
     <div class="note">Last backup: ${S.lastBackup?fmt(S.lastBackup,true):"never"}${storageOK?"":" · storage is blocked in this browser"}</div></div>`;
-  h+=`<div class="card"><h3>Maxes</h3><div class="note">Weeks 1–9 use the estimate. Enter your week 9 test results under “Tested” and weeks 10–12 recalculate.</div>
-    <table class="mx"><thead><tr><th>Lift</th><th>Estimate (kg)</th><th>Tested (kg)</th></tr></thead><tbody>
-    ${Object.keys(LIFTS).map(k=>`<tr><td>${LIFTS[k]}</td><td><input id="mx-${k}" inputmode="decimal" data-act="max" data-k="${k}" data-f="est" value="${esc(S.maxes[k].est)}"></td><td><input id="mt-${k}" inputmode="decimal" data-act="max" data-k="${k}" data-f="tested" value="${esc(S.maxes[k].tested??"")}" placeholder="–"></td></tr>`).join("")}
-    </tbody></table></div>`;
+  const c=calories();
+  const toGo=curWeight()-Number(S.goalWeight);
+  const wksToGoal=toGo>0&&c.realRate>0?Math.ceil(toGo/c.realRate):0;
+  const pctRate=Math.round(Number(S.rate)/curWeight()*1000)/10;
+  h+=`<div class="card"><h3>Weight, goal and calories</h3>
+    <div class="note">Change any value and the calorie targets, weekly target weights and timeline recalculate straight away.</div>
+    <table class="mx"><tbody>
+    <tr><td>Current weight (kg)</td><td><input id="g-cur" inputmode="decimal" data-act="set" data-f="curWeight" value="${esc(curWeight())}"></td></tr>
+    <tr><td>Goal weight (kg)</td><td><input id="g-goal" inputmode="decimal" data-act="set" data-f="goalWeight" value="${esc(S.goalWeight)}"></td></tr>
+    <tr><td>Loss per week (kg)</td><td><select id="g-rate" data-act="setsel" data-f="rate">${[0.25,0.4,0.5,0.6,0.7,0.8,0.9,1.0].map(v=>`<option value="${v}" ${Number(S.rate)===v?"selected":""}>${v.toLocaleString("en-GB")} kg</option>`).join("")}</select></td></tr>
+    <tr><td>Activity outside training</td><td><select id="g-act" data-act="setsel" data-f="activity">${[[1.4,"Mostly sitting"],[1.5,"Desk job, some walking"],[1.6,"On your feet a lot"],[1.7,"Physical job"]].map(([v,t])=>`<option value="${v}" ${Number(S.activity)===v?"selected":""}>${t}</option>`).join("")}</select></td></tr>
+    <tr><td>Age · height (cm)</td><td style="display:flex;gap:6px"><input id="g-age" inputmode="numeric" data-act="set" data-f="age" value="${esc(S.age)}"><input id="g-h" inputmode="numeric" data-act="set" data-f="height" value="${esc(S.height)}"></td></tr>
+    </tbody></table>
+    <div class="tiles" style="margin-top:10px">
+      <div class="tile"><div class="v num">${c.tdee.toLocaleString("en-GB")}</div><div class="k">Est. maintenance kcal</div></div>
+      <div class="tile"><div class="v num">${c.g.toLocaleString("en-GB")}</div><div class="k">Gym-day kcal</div></div>
+      <div class="tile"><div class="v num">${c.o.toLocaleString("en-GB")}</div><div class="k">Other-day kcal</div></div></div>
+    <div class="note num">Average ${c.avg.toLocaleString("en-GB")} kcal/day · week 12 target ${kg(targetFor(12))} kg${wksToGoal?` · goal of ${kg(S.goalWeight)} kg in about ${wksToGoal} weeks (around ${fmt(addDays(TODAY,wksToGoal*7))} ${parse(addDays(TODAY,wksToGoal*7)).getUTCFullYear()})`:""}</div>
+    ${pctRate>1?`<div class="banner warn">${S.rate} kg a week is ${pctRate}% of your weight. Above about 1% a week, more of the loss tends to come from muscle and lifts suffer.</div>`:""}
+    ${c.capped?`<div class="banner warn">The calorie floor applies, so expect about ${c.realRate} kg a week rather than ${S.rate} kg.</div>`:""}
+    <div class="note">Maintenance is an estimate (Mifflin–St Jeor formula × activity). If your weekly average moves differently from the target for 3–4 weeks, adjust the loss rate or activity here.</div>
+    <div class="btns"><button type="button" class="btn small" data-act="usewkavg">Use this week’s average weight</button></div></div>`;
+  h+=`<div class="card"><h3>Plan start</h3><div class="note">Week 1 began on ${fmt(S.start,true)} ${parse(S.start).getUTCFullYear()}. Restarting sets today as day 1 of week 1, rebuilds the 12 weeks (including where the Christmas deload falls) and keeps everything you have logged.</div>
+    <div class="btns"><button type="button" class="btn" data-act="restartsetup">Restart plan from today</button></div></div>`;
+  h+=`<div class="card"><h3>Maxes</h3><div class="note">${(()=>{const t=WEEKS.findIndex(w=>w.kind==="test")+1;return `Weeks 1–${t} use the estimate. Enter your week ${t} test results under “Tested” and weeks ${t+1}–12 recalculate.`;})()}</div>
+    <table class="mx"><thead><tr><th>Lift</th><th>Estimate (kg)</th><th>Tested (kg)</th><th>From your log</th></tr></thead><tbody>
+    ${Object.keys(LIFTS).map(k=>{const b=bestFromLog(k);return `<tr><td>${LIFTS[k]}</td><td><input id="mx-${k}" inputmode="decimal" data-act="max" data-k="${k}" data-f="est" value="${esc(S.maxes[k].est)}"></td><td><input id="mt-${k}" inputmode="decimal" data-act="max" data-k="${k}" data-f="tested" value="${esc(S.maxes[k].tested??"")}" placeholder="–"></td><td>${b?`<button type="button" class="btn small" data-act="uselog" data-k="${k}" data-v="${b.kg}">Use ${kg(b.kg)}</button>`:'<span class="meta">–</span>'}</td></tr>`;}).join("")}
+    </tbody></table>
+    <div class="note">“From your log” estimates your max from your best completed set of 1–12 reps in the last 6 weeks. Using it updates every planned weight.</div>
+    <div class="label" style="margin-top:12px">Estimate a max from any set</div>
+    <div class="row2"><select id="c-lift">${Object.keys(LIFTS).map(k=>`<option value="${k}">${LIFTS[k]}</option>`).join("")}</select>
+    <div style="display:flex;gap:6px"><label class="field"><input id="c-kg" inputmode="decimal" placeholder="kg"></label><label class="field"><input id="c-r" inputmode="numeric" placeholder="reps"></label></div></div>
+    <div class="btns"><button type="button" class="btn small" data-act="calc">Calculate</button><span class="note num" id="c-out" role="status" style="margin:0;align-self:center"></span></div></div>`;
   h+=`<div class="card"><h3>Accessory starting weights</h3><table class="mx"><tbody>${ACC.map(a=>`<tr><td>${a.name}</td><td style="width:110px"><input id="acc-${a.k}" inputmode="decimal" data-act="acc" data-k="${a.k}" value="${esc(S.acc[a.k])}"></td></tr>`).join("")}</tbody></table><div class="note">0 = bodyweight.</div></div>`;
   h+=`<div class="card"><h3>Plan settings</h3><table class="mx"><tbody>
-    <tr><td>Start date (a Monday)</td><td><input id="set-start" type="date" data-act="set" data-f="start" value="${esc(S.start)}"></td></tr>
+    <tr><td>Start date</td><td><input id="set-start" type="date" data-act="set" data-f="start" value="${esc(S.start)}"></td></tr>
     <tr><td>Start weight (kg)</td><td><input id="set-sw" inputmode="decimal" data-act="set" data-f="startWeight" value="${esc(S.startWeight)}"></td></tr>
     <tr><td>Barbell weight (kg)</td><td><input id="set-bar" inputmode="decimal" data-act="set" data-f="bar" value="${esc(S.bar)}"></td></tr>
     <tr><td>Smith machine bar (kg)</td><td><input id="set-smith" inputmode="decimal" data-act="set" data-f="smithBar" value="${esc(S.smithBar)}"></td></tr>
     <tr><td>Round weights to (kg)</td><td><input id="set-step" inputmode="decimal" data-act="set" data-f="step" value="${esc(S.step)}"></td></tr>
     <tr><td>Protein target (g)</td><td><input id="set-prot" inputmode="numeric" data-act="set" data-f="protein" value="${esc(S.protein)}"></td></tr>
-    <tr><td>Holiday-day calories</td><td><input id="set-hol" inputmode="numeric" data-act="set" data-f="holidayK" value="${esc(S.holidayK)}"></td></tr>
     </tbody></table>
     ${S.adj.length?`<div class="label" style="margin-top:10px">Weight increases you added</div>${S.adj.map((a,i)=>`<div class="btns" style="align-items:center"><span class="num">${esc(LIFTS[a.k]||(ACC.find(x=>x.k===a.k)||{}).name||a.k)}: +${kg(a.kg)} kg from week ${a.from}</span><button type="button" class="btn small" data-act="deladj" data-i="${i}">Remove</button></div>`).join("")}`:""}</div>`;
   h+=`<div class="card"><h3>Backup and export</h3>
@@ -831,6 +924,14 @@ document.addEventListener("click",async e=>{
     extraOpen=false;save();render();
   }
   else if(a==="delextra"){const L=dayLog(viewDate,false);if(L&&L.extra){L.extra.splice(Number(b.dataset.i),1);save();render();}}
+  else if(a==="restart"){const w=Number(($("#rs-w")||{}).value?.replace(",","."));doRestart(w);render();window.scrollTo(0,0);}
+  else if(a==="norestart"){S.restartDismissed=true;save();render();}
+  else if(a==="restartsetup"){if(b.dataset.armed!=="1"){b.dataset.armed="1";b.textContent="Tap again to restart from today";b.classList.add("primary");return;}doRestart(curWeight());render();setMsg("");}
+  else if(a==="usewkavg"){const wk=weekOf(TODAY);const av=wk?weekAvg(wk):null;if(av){S.curWeight=Math.round(av*10)/10;save();render();}else{b.textContent="No weights logged this week yet";}}
+  else if(a==="uselog"){S.maxes[b.dataset.k].est=Number(b.dataset.v);save();render();}
+  else if(a==="calc"){const l=$("#c-lift").value,w=$("#c-kg").value.replace(",","."),r=$("#c-r").value;const e=e1rm(w,r);const out=$("#c-out");
+    if(!e){out.textContent="Enter a weight and 1–12 reps.";return;}const v=Math.round(e*2)/2;
+    out.innerHTML=`About ${kg(v)} kg <button type="button" class="btn small" data-act="uselog" data-k="${l}" data-v="${v}">Set as ${esc(LIFTS[l])} estimate</button>`;}
   else if(a==="reset"){if(!resetArmed){resetArmed=true;render();setTimeout(()=>{resetArmed=false;if(route()==="setup")render();},5000);}else{resetArmed=false;S=defaults();save();render();}}
 });
 document.addEventListener("input",e=>{
@@ -847,6 +948,8 @@ document.addEventListener("input",e=>{
 });
 document.addEventListener("change",e=>{
   const t=e.target;const a=t.dataset&&t.dataset.act;if(!a)return;
+  if(a==="set"&&route()==="setup"){const y=window.scrollY;render();window.scrollTo(0,y);return;}
+  if(a==="setsel"){S[t.dataset.f]=Number(t.value);save();render();return;}
   if(a==="rpe"){const it=findItem(t.dataset.item);const L=itemLog(viewDate,it,true);L.rpe=t.value;save();}
   else if(a==="swap"){if(t.value==="")delete S.swaps[viewDate];else S.swaps[viewDate]=Number(t.value);save();render();}
   else if(a==="file"){const f=t.files&&t.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{$("#bktext").value=r.result;restore(String(r.result).trim());};r.readAsText(f);}
